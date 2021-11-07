@@ -30,7 +30,7 @@ fn main() {
     terminal::enable_raw_mode().unwrap();
 
     // Get initial terminal size
-    let (mut COLUMNS, mut ROWS) = terminal::size().expect("Couldn't get Terminal Size");
+    let (mut columns, mut rows) = terminal::size().expect("Couldn't get Terminal Size");
 
     let mut rng = thread_rng();
 
@@ -39,7 +39,7 @@ fn main() {
 
     let mut dictionary: Vec<Word> = dictionary_string
         .split("\n")
-        .map(|s| Word::new(s, 0, rng.gen_range(0..ROWS)))
+        .map(|s| Word::new(s, 0, rng.gen_range(0..rows)))
         .collect();
 
     let mut stdout = stdout();
@@ -50,7 +50,7 @@ fn main() {
 
     let mut input: Vec<char> = vec![];
 
-    queue!(stdout, Clear(ClearType::All), MoveTo(COLUMNS / 2, ROWS / 2), Print("Shuffling Dictionary...")).unwrap();
+    queue!(stdout, Clear(ClearType::All), MoveTo(columns / 2, rows / 2), Print("Shuffling Dictionary...")).unwrap();
 
     stdout.flush().unwrap();
 
@@ -78,7 +78,7 @@ fn main() {
                 let mut color = Color::White;
                 if let Some(d) = input.get(j) {
                     if c == *d && i == dictionary_len - 1{
-                        color = Color::Yellow;
+                        color = Color::Green;
                         correct_chars += 1;
                     } else if i == dictionary_len - 1{
                         color = Color::Red;
@@ -102,7 +102,7 @@ fn main() {
             
             add_x -= 1;
 
-            if word.x >= COLUMNS {
+            if word.x >= columns {
                 break;
             }
 
@@ -110,7 +110,7 @@ fn main() {
                 last_instant = elapsed_millis;
             }
 
-            queue!(stdout, MoveTo(COLUMNS, ROWS)).unwrap();
+            queue!(stdout, MoveTo(columns, rows)).unwrap();
 
             // Render the queued frame
             stdout.flush().unwrap();
@@ -128,8 +128,18 @@ fn main() {
                 Event::Key(KeyEvent{code: KeyCode::Char('c'), modifiers: KeyModifiers::CONTROL}) => {
                     break;
                 },
+                Event::Resize(new_columns, new_rows) => {
+                    columns = new_columns;
+                    rows = new_rows;
+
+                    for word in &mut dictionary {
+                        word.y = rng.gen_range(0..rows);
+                    }
+                },
                 _ => ()        
             };
         }
     }
+
+    terminal::disable_raw_mode().unwrap();
 }
