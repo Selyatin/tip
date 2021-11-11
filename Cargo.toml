@@ -9,6 +9,6 @@ lto = "fat"
 opt-level = 3
 
 [dependencies]
+anyhow = "1.0.45"
 crossterm = "0.22.1"
-lazy_static = "1.4.0"
 rand = "0.8.4"

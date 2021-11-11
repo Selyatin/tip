@@ -1,14 +1,11 @@
-mod word;
+mod types;
+mod screens;
 
-use word::Word;
-use lazy_static::lazy_static;
+use types::{State, Word, Screen, Player};
 use std::{
     io::{Write, stdout},
     thread,
     time::{Instant, Duration},
-    sync::{
-        mpsc::{channel, Sender, Receiver}
-    }
 };
 use crossterm::{
     queue,
@@ -25,121 +22,92 @@ use rand::{
     seq::SliceRandom
 };
 
-fn main() {
+fn main() -> anyhow::Result<()> {
 
-    terminal::enable_raw_mode().unwrap();
+    terminal::enable_raw_mode()?;
 
     // Get initial terminal size
-    let (mut columns, mut rows) = terminal::size().expect("Couldn't get Terminal Size");
+    let (mut columns, mut rows) = terminal::size()?;
 
     let mut rng = thread_rng();
 
     // Include the dictionary file as a string
     let dictionary_string = include_str!("../dictionary.txt");
 
+    // Parse dictionary
     let mut dictionary: Vec<Word> = dictionary_string
         .split("\n")
-        .map(|s| Word::new(s, 0, rng.gen_range(0..rows)))
+        .map(|s| Word::new(s, 0, rng.gen_range(0..rows - 1)))
         .collect();
+
+    drop(dictionary_string);
+
+    let mut screen = Screen::Main;
+
+    let mut state = State {
+        columns,
+        rows,
+        dictionary,
+        players: vec![],
+        instant: Instant::now(),
+        last_instant: 0,
+        current_player: 0
+    };
 
     let mut stdout = stdout();
 
-    let instant = Instant::now();
-
-    let mut last_instant = 0;
-
     let mut input: Vec<char> = vec![];
 
-    queue!(stdout, Clear(ClearType::All), MoveTo(columns / 2, rows / 2), Print("Shuffling Dictionary...")).unwrap();
+    queue!(stdout, Clear(ClearType::All), MoveTo(columns / 2, rows / 2), Print("Shuffling Dictionary..."))?;
 
-    stdout.flush().unwrap();
+    stdout.flush()?;
 
-    dictionary.shuffle(&mut rng);
+    state.dictionary.shuffle(&mut rng);
 
     loop {
-        queue!(stdout, Clear(ClearType::All)).unwrap();
+        match screen {
+            Screen::Main => screens::main_screen(&mut stdout, &state)?,
+            Screen::Single => screens::single_player_screen(&mut stdout, &mut state)?
+        };
 
-        let elapsed_millis = instant.elapsed().as_millis();
+        // Render the queued frame
+        stdout.flush()?;
 
-        let should_go_forward: bool = elapsed_millis - last_instant > 500;
-
-        let mut i = dictionary.len() - 1;
-        
-        let mut add_x: u16 = 4;
-
-        while i > dictionary.len() - 5 { 
-            let dictionary_len = dictionary.len();
-            
-            let word = &mut dictionary[i];
-
-            let mut correct_chars = 0;
-
-            for (j, c) in word.value.chars().enumerate() {
-                let mut color = Color::White;
-                if let Some(d) = input.get(j) {
-                    if c == *d && i == dictionary_len - 1{
-                        color = Color::Green;
-                        correct_chars += 1;
-                    } else if i == dictionary_len - 1{
-                        color = Color::Red;
-                    }
-                }
-                queue!(stdout, MoveTo(word.x + j as u16, word.y), PrintStyledContent(style(c).with(color))).unwrap();
-            }
-
-            i -= 1;
-
-            if correct_chars == word.value.len() {
-                drop(word);
-                dictionary.pop();
-                input.clear();
-                continue;
-            }
-
-            if should_go_forward {
-                word.x += add_x;
-            } 
-            
-            add_x -= 1;
-
-            if word.x >= columns {
-                break;
-            }
-
-            if should_go_forward{
-                last_instant = elapsed_millis;
-            }
-
-            queue!(stdout, MoveTo(columns, rows)).unwrap();
-
-            // Render the queued frame
-            stdout.flush().unwrap();
-        }
-
-        // Sleep 16 millis so that we render 60 fps
-        if event::poll(Duration::from_millis(16)).unwrap() {
-            match event::read().unwrap() {
+        // Sleep at most 16 ms so that we render 60 fps
+        if event::poll(Duration::from_millis(16))? {
+            match event::read()? {
                 Event::Key(KeyEvent{code: KeyCode::Char(c), modifiers: KeyModifiers::NONE}) => {
-                    input.push(c);
+                    state.players[state.current_player].input.push(c);
                 },
                 Event::Key(KeyEvent{code: KeyCode::Backspace, modifiers: KeyModifiers::NONE}) => {
-                    input.pop();
+                     state.players[state.current_player].input.pop();
                 },
-                Event::Key(KeyEvent{code: KeyCode::Char('c'), modifiers: KeyModifiers::CONTROL}) => {
+                Event::Key(KeyEvent{code: KeyCode::Esc, modifiers: KeyModifiers::NONE}) => {
                     break;
                 },
+                Event::Key(KeyEvent{code: KeyCode::F(1), modifiers: KeyModifiers::NONE}) => {
+                    screen = Screen::Single;
+                    state.current_player = 0;
+                    state.players.clear();
+                    state.players.push(Player::default());
+                },
                 Event::Resize(new_columns, new_rows) => {
-                    columns = new_columns;
-                    rows = new_rows;
-
-                    for word in &mut dictionary {
-                        word.y = rng.gen_range(0..rows);
+                    // Using nearest-neighbor interpolation to scale the frame up/down
+                    let scale_x = new_columns as f32 / state.columns as f32;
+                    let scale_y = new_rows as f32 / state.rows as f32;
+                    for word in &mut state.dictionary {
+                        word.x = (word.x as f32 * scale_x) as u16;
+                        word.y = (word.y as f32 * scale_y) as u16;
                     }
+                    state.columns = new_columns;
+                    state.rows = new_rows;
                 },
                 _ => ()        
             };
         }
     }
 
-    terminal::disable_raw_mode().unwrap();
+    terminal::disable_raw_mode()?;
+
+    Ok(())
 }
