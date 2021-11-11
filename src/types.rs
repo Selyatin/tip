@@ -1,7 +1,4 @@
-use std::{
-    time::Instant,
-    net::TcpStream
-};
+use std::{net::TcpStream, time::Instant};
 
 pub struct State {
     pub columns: u16,
@@ -11,20 +8,20 @@ pub struct State {
     pub instant: Instant,
     pub last_instant: u128,
     pub current_player: usize,
-    pub socket: Option<TcpStream>
+    pub socket: Option<TcpStream>,
 }
 
 #[derive(Eq, PartialEq)]
 pub enum Screen {
     Main,
     Single,
-    Join
+    Join,
 }
 
 pub struct Word {
     pub value: String,
     pub x: u16,
-    pub y: u16
+    pub y: u16,
 }
 
 impl Word {
@@ -32,7 +29,7 @@ impl Word {
         Self {
             value: value.into(),
             x,
-            y
+            y,
         }
     }
 }
@@ -40,5 +37,5 @@ impl Word {
 #[derive(Default)]
 pub struct Player {
     pub position: usize,
-    pub input: String
+    pub input: String,
 }

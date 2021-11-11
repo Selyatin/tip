@@ -1,16 +1,15 @@
 use super::types::State;
-use std::{
-    io::{self, Write, Read, Stdout},
-    time::{Instant, Duration},
-    net::TcpStream
-};
 use crossterm::{
-    queue,
-    ExecutableCommand,
-    QueueableCommand,
-    terminal::{self, Clear, ClearType},
     cursor::MoveTo,
-    style::{Attribute, Stylize, style, SetForegroundColor, Color, Print, PrintStyledContent}
+    queue,
+    style::{style, Attribute, Color, Print, PrintStyledContent, SetForegroundColor, Stylize},
+    terminal::{self, Clear, ClearType},
+    ExecutableCommand, QueueableCommand,
+};
+use std::{
+    io::{self, Read, Stdout, Write},
+    net::TcpStream,
+    time::{Duration, Instant},
 };
 
 pub fn main_screen(stdout: &mut Stdout, state: &State) -> io::Result<()> {
@@ -20,7 +19,7 @@ pub fn main_screen(stdout: &mut Stdout, state: &State) -> io::Result<()> {
     queue!(
         stdout,
         Clear(ClearType::All),
-        MoveTo(x, (y * 0.75) as u16), 
+        MoveTo(x, (y * 0.75) as u16),
         PrintStyledContent("F1 - Single Player".green().bold()),
         MoveTo(x, (y * 0.8) as u16),
         PrintStyledContent("F2 - Create New Multiplayer Session".yellow().bold()),
@@ -28,7 +27,7 @@ pub fn main_screen(stdout: &mut Stdout, state: &State) -> io::Result<()> {
         PrintStyledContent("F3 - Join Session".blue().bold()),
         MoveTo(x, (y * 0.9) as u16),
         PrintStyledContent("ESC - Quit".red().bold())
-    )?; 
+    )?;
 
     Ok(())
 }
@@ -48,13 +47,15 @@ pub fn single_player_screen(stdout: &mut Stdout, state: &mut State) -> io::Resul
 
     let mut add_x: u16 = 4;
 
-    for (i, word) in state.dictionary[player.position..player.position + 4].iter_mut().enumerate() {
-
+    for (i, word) in state.dictionary[player.position..player.position + 4]
+        .iter_mut()
+        .enumerate()
+    {
         let mut correct_chars = 0;
 
         for (j, c) in word.value.chars().enumerate() {
             let mut color = Color::White;
-            let mut boldness = Attribute::NormalIntensity; 
+            let mut boldness = Attribute::NormalIntensity;
 
             if i == 0 {
                 if let Some(d) = player.input.chars().nth(j) {
@@ -70,15 +71,13 @@ pub fn single_player_screen(stdout: &mut Stdout, state: &mut State) -> io::Resul
             }
 
             queue!(
-                stdout, 
+                stdout,
                 MoveTo(word.x + j as u16, word.y),
                 PrintStyledContent(style(c).with(color).attribute(boldness))
             )?;
-
-
         }
 
-        if correct_chars == word.value.len() || word.x >= columns{
+        if correct_chars == word.value.len() || word.x >= columns {
             player.input.clear();
             player.position += 1;
         }
@@ -91,14 +90,13 @@ pub fn single_player_screen(stdout: &mut Stdout, state: &mut State) -> io::Resul
         add_x -= 1;
 
         queue!(stdout, MoveTo(columns, rows))?;
-
     }
 
     Ok(())
 }
 
 pub fn join_screen(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
-    let (columns, rows) = (state.columns as f32, state.rows as f32); 
+    let (columns, rows) = (state.columns as f32, state.rows as f32);
 
     queue!(stdout, Clear(ClearType::All))?;
 
@@ -116,10 +114,10 @@ pub fn join_screen(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
     for x in x_start..x_end {
         queue!(
-            stdout, 
-            MoveTo(x, y_start), 
-            Print('-'), 
-            MoveTo(x, y_end), 
+            stdout,
+            MoveTo(x, y_start),
+            Print('-'),
+            MoveTo(x, y_end),
             Print('-')
         )?;
     }
@@ -130,21 +128,21 @@ pub fn join_screen(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
     for y in y_start..y_end {
         queue!(
-            stdout, 
-            MoveTo(x_start, y), 
-            Print('|'), 
-            MoveTo(x_end, y), 
+            stdout,
+            MoveTo(x_start, y),
+            Print('|'),
+            MoveTo(x_end, y),
             Print('|')
         )?;
     }
 
-    Ok(()) 
+    Ok(())
 }
 
 pub fn print_error(
-    stdout: &mut Stdout, 
-    state: &State, 
-    err: impl std::fmt::Display
+    stdout: &mut Stdout,
+    state: &State,
+    err: impl std::fmt::Display,
 ) -> io::Result<()> {
     let (columns, rows) = (state.columns, state.rows);
 

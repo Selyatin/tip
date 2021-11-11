@@ -1,36 +1,30 @@
-mod types;
 mod screens;
+mod types;
 
-use types::{State, Word, Screen, Player};
-use std::{
-    io::{Write, stdout},
-    thread,
-    time::{Instant, Duration},
-};
 use crossterm::{
-    queue,
-    ExecutableCommand,
-    QueueableCommand,
-    terminal::{self, Clear, ClearType},
     cursor::MoveTo,
-    event::{self, Event, KeyEvent, KeyCode, KeyModifiers, },
-    style::{Stylize, style, SetForegroundColor, Color, Print, PrintStyledContent}
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    queue,
+    style::{style, Color, Print, PrintStyledContent, SetForegroundColor, Stylize},
+    terminal::{self, Clear, ClearType},
+    ExecutableCommand, QueueableCommand,
 };
-use rand::{
-    Rng,
-    thread_rng,
-    seq::SliceRandom
+use rand::{seq::SliceRandom, thread_rng, Rng};
+use std::{
+    io::{stdout, Write},
+    thread,
+    time::{Duration, Instant},
 };
+use types::{Player, Screen, State, Word};
 
-fn reset_state(state: &mut State){
-      state.socket = None;
-        state.current_player = 0;
-        state.players.clear();
-        state.players.push(Player::default());
+fn reset_state(state: &mut State) {
+    state.socket = None;
+    state.current_player = 0;
+    state.players.clear();
+    state.players.push(Player::default());
 }
 
 fn main() -> anyhow::Result<()> {
-
     terminal::enable_raw_mode()?;
 
     // Get initial terminal size
@@ -59,12 +53,17 @@ fn main() -> anyhow::Result<()> {
         instant: Instant::now(),
         last_instant: 0,
         current_player: 0,
-        socket: None
+        socket: None,
     };
 
     let mut stdout = stdout();
 
-    queue!(stdout, Clear(ClearType::All), MoveTo(columns / 2, rows / 2), Print("Shuffling Dictionary..."))?;
+    queue!(
+        stdout,
+        Clear(ClearType::All),
+        MoveTo(columns / 2, rows / 2),
+        Print("Shuffling Dictionary...")
+    )?;
 
     stdout.flush()?;
 
@@ -74,44 +73,62 @@ fn main() -> anyhow::Result<()> {
         match screen {
             Screen::Main => screens::main_screen(&mut stdout, &state)?,
             Screen::Single => screens::single_player_screen(&mut stdout, &mut state)?,
-            Screen::Join => screens::join_screen(&mut stdout, &mut state)?
+            Screen::Join => screens::join_screen(&mut stdout, &mut state)?,
         };
 
         // Render the queued frame
         stdout.flush()?;
 
-        // Sleep at most 16 ms so that we render 60 fps
-        if event::poll(Duration::from_millis(16))? {
+        // Might change later in-case duration is too long for multiplayer
+        if event::poll(Duration::from_millis(35))? {
             match event::read()? {
-                Event::Key(KeyEvent{code: KeyCode::Char(c), modifiers: KeyModifiers::NONE}) => {
+                Event::Key(KeyEvent {
+                    code: KeyCode::Char(c),
+                    modifiers: KeyModifiers::NONE,
+                }) => {
                     if let Some(player) = state.players.get_mut(state.current_player) {
                         player.input.push(c);
                     }
-                },
-                Event::Key(KeyEvent{code: KeyCode::Enter, modifiers: KeyModifiers::NONE}) => {
+                }
+                Event::Key(KeyEvent {
+                    code: KeyCode::Enter,
+                    modifiers: KeyModifiers::NONE,
+                }) => {
                     if let Some(player) = state.players.get_mut(state.current_player) {
                         player.input.push('\n');
                     }
-                },
-                Event::Key(KeyEvent{code: KeyCode::Backspace, modifiers: KeyModifiers::NONE}) => {
+                }
+                Event::Key(KeyEvent {
+                    code: KeyCode::Backspace,
+                    modifiers: KeyModifiers::NONE,
+                }) => {
                     if let Some(player) = state.players.get_mut(state.current_player) {
                         player.input.pop();
                     }
-                },
-                Event::Key(KeyEvent{code: KeyCode::Esc, modifiers: KeyModifiers::NONE}) => {
+                }
+                Event::Key(KeyEvent {
+                    code: KeyCode::Esc,
+                    modifiers: KeyModifiers::NONE,
+                }) => {
                     if screen == Screen::Main {
                         break;
                     }
                     screen = Screen::Main;
-                },
-                Event::Key(KeyEvent{code: KeyCode::F(1), modifiers: KeyModifiers::NONE}) => {
+                }
+                Event::Key(KeyEvent {
+                    code: KeyCode::F(1),
+                    modifiers: KeyModifiers::NONE,
+                }) => {
                     reset_state(&mut state);
                     screen = Screen::Single;
-                },
-                Event::Key(KeyEvent{code: KeyCode::F(3), modifiers: KeyModifiers::NONE}) => {
+                }
+                Event::Key(KeyEvent {
+                    code: KeyCode::F(3),
+                    modifiers: KeyModifiers::NONE,
+                }) => {
                     reset_state(&mut state);
                     screen = Screen::Join;
-                },
+                }
                 Event::Resize(new_columns, new_rows) => {
                     // Using nearest-neighbor interpolation to scale the frame up/down
                     let scale_x = new_columns as f32 / state.columns as f32;
@@ -122,8 +139,8 @@ fn main() -> anyhow::Result<()> {
                     }
                     state.columns = new_columns;
                     state.rows = new_rows;
-                },
-                _ => ()        
+                }
+                _ => (),
             };
         }
     }
