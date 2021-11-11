@@ -1,4 +1,7 @@
-use std::time::Instant;
+use std::{
+    time::Instant,
+    net::TcpStream
+};
 
 pub struct State {
     pub columns: u16,
@@ -7,12 +10,15 @@ pub struct State {
     pub dictionary: Vec<Word>,
     pub instant: Instant,
     pub last_instant: u128,
-    pub current_player: usize
+    pub current_player: usize,
+    pub socket: Option<TcpStream>
 }
 
+#[derive(Eq, PartialEq)]
 pub enum Screen {
     Main,
-    Single
+    Single,
+    Join
 }
 
 pub struct Word {
@@ -34,5 +40,5 @@ impl Word {
 #[derive(Default)]
 pub struct Player {
     pub position: usize,
-    pub input: Vec<char>
+    pub input: String
 }

@@ -22,12 +22,19 @@ use rand::{
     seq::SliceRandom
 };
 
+fn reset_state(state: &mut State){
+      state.socket = None;
+        state.current_player = 0;
+        state.players.clear();
+        state.players.push(Player::default());
+}
+
 fn main() -> anyhow::Result<()> {
 
     terminal::enable_raw_mode()?;
 
     // Get initial terminal size
-    let (mut columns, mut rows) = terminal::size()?;
+    let (columns, rows) = terminal::size()?;
 
     let mut rng = thread_rng();
 
@@ -35,7 +42,7 @@ fn main() -> anyhow::Result<()> {
     let dictionary_string = include_str!("../dictionary.txt");
 
     // Parse dictionary
-    let mut dictionary: Vec<Word> = dictionary_string
+    let dictionary: Vec<Word> = dictionary_string
         .split("\n")
         .map(|s| Word::new(s, 0, rng.gen_range(0..rows - 1)))
         .collect();
@@ -51,12 +58,11 @@ fn main() -> anyhow::Result<()> {
         players: vec![],
         instant: Instant::now(),
         last_instant: 0,
-        current_player: 0
+        current_player: 0,
+        socket: None
     };
 
     let mut stdout = stdout();
-
-    let mut input: Vec<char> = vec![];
 
     queue!(stdout, Clear(ClearType::All), MoveTo(columns / 2, rows / 2), Print("Shuffling Dictionary..."))?;
 
@@ -67,7 +73,8 @@ fn main() -> anyhow::Result<()> {
     loop {
         match screen {
             Screen::Main => screens::main_screen(&mut stdout, &state)?,
-            Screen::Single => screens::single_player_screen(&mut stdout, &mut state)?
+            Screen::Single => screens::single_player_screen(&mut stdout, &mut state)?,
+            Screen::Join => screens::join_screen(&mut stdout, &mut state)?
         };
 
         // Render the queued frame
@@ -77,19 +84,33 @@ fn main() -> anyhow::Result<()> {
         if event::poll(Duration::from_millis(16))? {
             match event::read()? {
                 Event::Key(KeyEvent{code: KeyCode::Char(c), modifiers: KeyModifiers::NONE}) => {
-                    state.players[state.current_player].input.push(c);
+                    if let Some(player) = state.players.get_mut(state.current_player) {
+                        player.input.push(c);
+                    }
+                },
+                Event::Key(KeyEvent{code: KeyCode::Enter, modifiers: KeyModifiers::NONE}) => {
+                    if let Some(player) = state.players.get_mut(state.current_player) {
+                        player.input.push('\n');
+                    }
                 },
                 Event::Key(KeyEvent{code: KeyCode::Backspace, modifiers: KeyModifiers::NONE}) => {
-                     state.players[state.current_player].input.pop();
+                    if let Some(player) = state.players.get_mut(state.current_player) {
+                        player.input.pop();
+                    }
                 },
                 Event::Key(KeyEvent{code: KeyCode::Esc, modifiers: KeyModifiers::NONE}) => {
-                    break;
+                    if screen == Screen::Main {
+                        break;
+                    }
+                    screen = Screen::Main;
                 },
                 Event::Key(KeyEvent{code: KeyCode::F(1), modifiers: KeyModifiers::NONE}) => {
+                    reset_state(&mut state);
                     screen = Screen::Single;
-                    state.current_player = 0;
-                    state.players.clear();
-                    state.players.push(Player::default());
+                },
+                Event::Key(KeyEvent{code: KeyCode::F(3), modifiers: KeyModifiers::NONE}) => {
+                    reset_state(&mut state);
+                    screen = Screen::Join;
                 },
                 Event::Resize(new_columns, new_rows) => {
                     // Using nearest-neighbor interpolation to scale the frame up/down
