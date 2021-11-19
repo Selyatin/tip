@@ -55,4 +55,5 @@ pub struct Player {
     // Used as an index for Player's Word position in the dictionary
     pub position: usize,
     pub input: String,
+    pub current_player: bool,
 }

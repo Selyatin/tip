@@ -105,12 +105,24 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
                 state.players.sort_by(|player_a, player_b| {
                     player_a.sort_position.cmp(&player_b.sort_position)
                 });
+                for (i, player) in state.players.iter().enumerate() {
+                    if player.current_player {
+                        state.current_player = i;
+                        break;
+                    }
+                }
             }
             Action::Left(position) => {
                 state.players.remove(position);
                 state.players.sort_by(|player_a, player_b| {
                     player_a.sort_position.cmp(&player_b.sort_position)
                 });
+                for (i, player) in state.players.iter().enumerate() {
+                    if player.current_player {
+                        state.current_player = i;
+                        break;
+                    }
+                }
             }
             Action::Input((position, c)) => {
                 if let Some(player) = state.players.get_mut(position) {

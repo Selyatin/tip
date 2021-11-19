@@ -10,7 +10,6 @@ use crossterm::{
     terminal::{self, Clear, ClearType},
     ExecutableCommand, QueueableCommand,
 };
-use rand::{rngs::SmallRng, seq::SliceRandom, Rng, SeedableRng};
 use socket::Socket;
 use std::{
     env,
@@ -27,7 +26,9 @@ fn reset_state(state: &mut State) {
     state.session_token = None;
     state.current_player = 0;
     state.players.clear();
-    state.players.push(Player::default());
+    let mut player = Player::default();
+    player.current_player = true;
+    state.players.push(player);
 }
 
 fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
@@ -58,6 +59,13 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
             PrintStyledContent(style(session_token).green().bold())
         )?;
     }
+
+    // For debugging dictionary's reproducability issue
+    queue!(
+        stdout,
+        MoveTo(0, state.rows),
+        PrintStyledContent(style(&state.dictionary[0].value).green().bold()),
+    )?;
 
     // Render the queued frame
     stdout.flush()?;
@@ -93,13 +101,24 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
 
                     state.socket.as_ref().unwrap().init_reader()?;
 
-                    let mut rng = SmallRng::seed_from_u64(session_token.into());
+                    let rng = fastrand::Rng::with_seed(state.session_token.unwrap().into());
 
-                    state.dictionary.shuffle(&mut rng);
+                    queue!(stdout, Clear(ClearType::All))?;
+
+                    for _ in 0..100 {
+                        queue!(stdout, Print(rng.u16(1..100)), Print(' '))?;
+                    }
+
+                    stdout.flush()?;
+
+                    thread::sleep(Duration::from_secs(10));
+
+                    rng.shuffle(&mut state.dictionary);
+
                     state
                         .dictionary
                         .iter_mut()
-                        .for_each(|word| word.y = rng.gen_range(0..state.rows - 1));
+                        .for_each(|word| word.y = rng.u16(0..state.rows - 1));
 
                     state.screen = Screen::MultiPlayer;
                 }
@@ -130,12 +149,16 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
                 modifiers: KeyModifiers::NONE,
             }) => {
                 reset_state(state);
-                let mut rng = SmallRng::from_entropy();
-                state.dictionary.shuffle(&mut rng);
+
+                let rng = fastrand::Rng::new();
+
+                rng.shuffle(&mut state.dictionary);
+
                 state
                     .dictionary
                     .iter_mut()
-                    .for_each(|word| word.y = rng.gen_range(0..state.rows - 1));
+                    .for_each(|word| word.y = rng.u16(0..state.rows - 1));
+
                 state.screen = Screen::SinglePlayer;
             }
             Event::Key(KeyEvent {
@@ -150,13 +173,24 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
 
                 state.socket.as_ref().unwrap().init_reader()?;
 
-                let mut rng = SmallRng::seed_from_u64(state.session_token.unwrap().into());
+                let rng = fastrand::Rng::with_seed(state.session_token.unwrap().into());
 
-                state.dictionary.shuffle(&mut rng);
+                queue!(stdout, Clear(ClearType::All))?;
+
+                for _ in 0..100 {
+                    queue!(stdout, Print(rng.u16(1..100)), Print(' '))?;
+                }
+
+                stdout.flush()?;
+
+                thread::sleep(Duration::from_secs(10));
+
+                rng.shuffle(&mut state.dictionary);
+
                 state
                     .dictionary
                     .iter_mut()
-                    .for_each(|word| word.y = rng.gen_range(0..state.rows - 1));
+                    .for_each(|word| word.y = rng.u16(0..state.rows - 1));
 
                 state.screen = Screen::MultiPlayer;
             }
@@ -193,7 +227,7 @@ fn main() -> anyhow::Result<()> {
     // Get initial terminal size
     let (columns, rows) = terminal::size()?;
 
-    let mut rng = SmallRng::from_entropy();
+    let rng = fastrand::Rng::new();
 
     // Include the dictionary file as a string
     let dictionary_string = include_str!("../dictionary.txt");
@@ -201,7 +235,7 @@ fn main() -> anyhow::Result<()> {
     // Parse dictionary
     let dictionary: Vec<Word> = dictionary_string
         .split("\n")
-        .map(|s| Word::new(s, 0, rng.gen_range(0..rows - 1)))
+        .map(|s| Word::new(s, 0, rng.u16(0..rows - 1)))
         .collect();
 
     drop(dictionary_string);
@@ -233,7 +267,7 @@ fn main() -> anyhow::Result<()> {
 
     stdout.flush()?;
 
-    state.dictionary.shuffle(&mut rng);
+    rng.shuffle(&mut state.dictionary);
 
     drop(rng);
 

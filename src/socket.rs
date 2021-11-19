@@ -18,7 +18,7 @@ pub struct Socket {
 
 impl Drop for Socket {
     fn drop(&mut self) {
-        self.should_drop.store(true, Ordering::SeqCst);
+        self.should_drop.store(true, Ordering::Release);
     }
 }
 
@@ -50,7 +50,7 @@ impl Socket {
         let mut buffer = [0u8; 5];
         let mut actions_backup: Vec<Action> = vec![];
 
-        while !should_drop.load(Ordering::SeqCst) {
+        while !should_drop.load(Ordering::Acquire) {
             if stream.read(&mut buffer)? < 1 {
                 break;
             }
