@@ -1,3 +1,5 @@
+#[macro_use] extern crate lazy_static;
+
 mod screens;
 mod socket;
 mod types;
@@ -19,6 +21,13 @@ use std::{
     time::{Duration, Instant},
 };
 use types::{Action, Player, Screen, State, Word};
+
+lazy_static! {
+    static ref DICTIONARY: Vec<Word> = include_str!("../dictionary.txt")
+        .split("\n")
+        .map(|s| Word::new(s, 0, 0))
+        .collect();
+}
 
 fn reset_state(state: &mut State) {
     state.socket = None;
@@ -100,18 +109,10 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
                     state.session_token = Some(session_token);
 
                     state.socket.as_ref().unwrap().init_reader()?;
+                    
+                    state.dictionary = DICTIONARY.clone();
 
                     let rng = fastrand::Rng::with_seed(state.session_token.unwrap().into());
-
-                    queue!(stdout, Clear(ClearType::All))?;
-
-                    for _ in 0..100 {
-                        queue!(stdout, Print(rng.u16(1..100)), Print(' '))?;
-                    }
-
-                    stdout.flush()?;
-
-                    thread::sleep(Duration::from_secs(10));
 
                     rng.shuffle(&mut state.dictionary);
 
@@ -149,7 +150,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
                 modifiers: KeyModifiers::NONE,
             }) => {
                 reset_state(state);
-
+                
                 let rng = fastrand::Rng::new();
 
                 rng.shuffle(&mut state.dictionary);
@@ -173,17 +174,9 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
 
                 state.socket.as_ref().unwrap().init_reader()?;
 
+                state.dictionary = DICTIONARY.clone();
+                
                 let rng = fastrand::Rng::with_seed(state.session_token.unwrap().into());
-
-                queue!(stdout, Clear(ClearType::All))?;
-
-                for _ in 0..100 {
-                    queue!(stdout, Print(rng.u16(1..100)), Print(' '))?;
-                }
-
-                stdout.flush()?;
-
-                thread::sleep(Duration::from_secs(10));
 
                 rng.shuffle(&mut state.dictionary);
 
@@ -219,6 +212,8 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
     Ok(())
 }
 
+
+
 fn main() -> anyhow::Result<()> {
     let sock_addr = env::args().nth(1).unwrap_or("127.0.0.1:8080".to_owned());
 
@@ -227,23 +222,10 @@ fn main() -> anyhow::Result<()> {
     // Get initial terminal size
     let (columns, rows) = terminal::size()?;
 
-    let rng = fastrand::Rng::new();
-
-    // Include the dictionary file as a string
-    let dictionary_string = include_str!("../dictionary.txt");
-
-    // Parse dictionary
-    let dictionary: Vec<Word> = dictionary_string
-        .split("\n")
-        .map(|s| Word::new(s, 0, rng.u16(0..rows - 1)))
-        .collect();
-
-    drop(dictionary_string);
-
     let mut state = State {
         columns,
         rows,
-        dictionary,
+        dictionary: DICTIONARY.clone(),
         sock_addr,
         screen: Screen::Main,
         players: vec![],
@@ -266,10 +248,6 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     stdout.flush()?;
-
-    rng.shuffle(&mut state.dictionary);
-
-    drop(rng);
 
     loop {
         if let Err(err) = main_loop(&mut stdout, &mut state) {

@@ -32,6 +32,7 @@ pub enum Screen {
     Join,
 }
 
+#[derive(Clone)]
 pub struct Word {
     pub value: String,
     pub x: u16,
