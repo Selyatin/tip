@@ -69,13 +69,6 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
         )?;
     }
 
-    // For debugging dictionary's reproducability issue
-    queue!(
-        stdout,
-        MoveTo(0, state.rows),
-        PrintStyledContent(style(&state.dictionary[0].value).green().bold()),
-    )?;
-
     // Render the queued frame
     stdout.flush()?;
 
