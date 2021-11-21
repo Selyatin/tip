@@ -1,5 +1,5 @@
 use super::socket::Socket;
-use std::{net::TcpStream, time::Instant};
+use std::{time::Instant};
 
 pub struct State {
     pub columns: u16,
@@ -13,7 +13,7 @@ pub struct State {
     pub current_player: usize,
     pub session_token: Option<u16>,
     pub socket: Option<Socket>,
-    pub err: Option<anyhow::Error>,
+    pub err: Option<Box<dyn std::error::Error>>,
 }
 
 /// Used in Multiplayer to determine what kind of data is received
@@ -22,6 +22,7 @@ pub enum Action {
     Input((usize, char)),
     Join(u8),
     Left(usize),
+    Forward
 }
 
 #[derive(Eq, PartialEq)]

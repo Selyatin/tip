@@ -8,19 +8,16 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute, queue,
-    style::{style, Color, Print, PrintStyledContent, SetForegroundColor, Stylize},
+    style::{style, Print, PrintStyledContent, Stylize},
     terminal::{self, Clear, ClearType},
-    ExecutableCommand, QueueableCommand,
 };
 use socket::Socket;
 use std::{
     env,
-    io::{stdout, Read, Stdout, Write},
-    net::TcpStream,
-    thread,
+    io::{self, stdout, Stdout, Write},
     time::{Duration, Instant},
 };
-use types::{Action, Player, Screen, State, Word};
+use types::{Player, Screen, State, Word};
 
 lazy_static! {
     static ref DICTIONARY: Vec<Word> = include_str!("../dictionary.txt")
@@ -40,7 +37,7 @@ fn reset_state(state: &mut State) {
     state.players.push(player);
 }
 
-fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
+fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
     // Clear the previous frame
     queue!(stdout, Clear(ClearType::All))?;
 
@@ -94,7 +91,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
 
                     state.socket = Some(Socket::new(&state.sock_addr)?);
 
-                    let session_token: u16 = player.input.parse()?;
+                    let session_token: u16 = player.input.parse().map_err(|_| io::Error::new(io::ErrorKind::Other, "Invalid Number."))?;
 
                     player.sort_position =
                         state.socket.as_mut().unwrap().join_session(session_token)?;
@@ -125,6 +122,9 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
             }) => {
                 if let Some(player) = state.players.get_mut(state.current_player) {
                     player.input.pop();
+                    if let Some(socket) = &mut state.socket {
+                        socket.send_input('-')?;
+                    }
                 }
             }
             Event::Key(KeyEvent {
@@ -136,6 +136,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
                     terminal::disable_raw_mode()?;
                     std::process::exit(0);
                 }
+                reset_state(state);
                 state.screen = Screen::Main;
             }
             Event::Key(KeyEvent {
@@ -207,7 +208,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> anyhow::Result<()> {
 
 
 
-fn main() -> anyhow::Result<()> {
+fn main() -> io::Result<()> {
     let sock_addr = env::args().nth(1).unwrap_or("127.0.0.1:8080".to_owned());
 
     terminal::enable_raw_mode()?;
@@ -244,7 +245,7 @@ fn main() -> anyhow::Result<()> {
 
     loop {
         if let Err(err) = main_loop(&mut stdout, &mut state) {
-            state.err = Some(err);
+            state.err = Some(Box::new(err));
         }
     }
 }

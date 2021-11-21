@@ -55,10 +55,14 @@ impl Socket {
                 break;
             }
 
-            let action = match &buffer[..4] {
-                b"Join" => Action::Join(buffer[4]),
-                b"Left" => Action::Left(buffer[4].into()),
-                _ => Action::Input((buffer[0].into(), buffer[1].into())),
+            let action = if buffer[0] == b'+' {
+                Action::Forward
+            } else {
+                match &buffer[..4] {
+                    b"Join" => Action::Join(buffer[4]),
+                    b"Left" => Action::Left(buffer[4].into()),
+                    _ => Action::Input((buffer[0].into(), buffer[1].into())),
+                }
             };
 
             if let Ok(mut vec) = actions.try_lock() {

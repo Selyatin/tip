@@ -2,15 +2,12 @@ use super::types::{Action, Player, State};
 use crossterm::{
     cursor::MoveTo,
     queue,
-    style::{style, Attribute, Color, Print, PrintStyledContent, SetForegroundColor, Stylize},
-    terminal::{self, Clear, ClearType},
-    ExecutableCommand, QueueableCommand,
+    style::{style, Attribute, Color, Print, PrintStyledContent, Stylize},
+    terminal::{Clear, ClearType},
 };
 use std::{
-    io::{self, Read, Stdout, Write},
+    io::{self, Stdout},
     iter,
-    net::TcpStream,
-    time::{Duration, Instant},
 };
 
 pub fn main(stdout: &mut Stdout, state: &State) -> io::Result<()> {
@@ -96,6 +93,8 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
     let socket = state.socket.as_ref().unwrap();
 
+    let mut should_go_forward = false;
+
     for action in socket.actions().drain(..) {
         match action {
             Action::Join(position) => {
@@ -126,17 +125,18 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
             }
             Action::Input((position, c)) => {
                 if let Some(player) = state.players.get_mut(position) {
-                    player.input.push(c);
+                    if c == '-' {
+                        player.input.pop();
+                    } else {
+                        player.input.push(c);
+                    }
                 }
             }
+            Action::Forward => should_go_forward = true,
         };
     }
 
     let (columns, rows) = (state.columns, state.rows as f32);
-
-    let elapsed_millis = state.instant.elapsed().as_millis();
-
-    let should_go_forward: bool = elapsed_millis - state.last_instant > 500;
 
     let players_len = state.players.len();
 
@@ -150,7 +150,7 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
     // Might use multithreading to calculate each player's section,
     // but that might be overengineering too, so we'll see.
     for (i, player) in state.players.iter_mut().enumerate() {
-        let y_start = (i as u16 * space_per_player);
+        let y_start = i as u16 * space_per_player;
         let y_end = y_start + space_per_player;
         let color = match i {
             0 => Color::Blue,
@@ -159,6 +159,7 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
             3 => Color::Yellow,
             _ => Color::White,
         };
+
         queue!(
             stdout,
             MoveTo(0, y_end),
@@ -206,7 +207,6 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
             if should_go_forward {
                 word.x += add_x;
-                state.last_instant = elapsed_millis;
             }
 
             add_x -= 1;
