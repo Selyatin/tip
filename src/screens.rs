@@ -1,4 +1,4 @@
-use super::types::{Action, Player, State};
+use super::types::{Action, Player, Screen, State};
 use crossterm::{
     cursor::MoveTo,
     queue,
@@ -143,7 +143,7 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
     let players_len = state.players.len();
 
-    let space_per_player = (rows / players_len as f32) as u16 - 2;
+    let space_per_player = ((rows - 2.0) / players_len as f32) as u16;
 
     let line: String = iter::repeat('-').take(columns.into()).collect();
 
@@ -162,13 +162,16 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
             _ => Color::White,
         };
 
+        let print_you = if player.current_player { " (You)" } else { "" };
+
         queue!(
             stdout,
             MoveTo(0, y_end),
             PrintStyledContent(style(&line).with(color)),
             MoveTo(5, y_end),
             PrintStyledContent("Player ".with(color)),
-            PrintStyledContent(style(i + 1).with(color))
+            PrintStyledContent(style(i + 1).with(color)),
+            PrintStyledContent(style(print_you).with(color))
         )?;
 
         let mut add_x: u16 = 4;
@@ -178,8 +181,10 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
             .enumerate()
         {
             let mut correct_chars = 0;
+            
+            let (y_start, y_end) = (y_start + 1, y_end - 1);
 
-            let word_y = ((word.y as f32 / rows) * (y_end - y_start) as f32) as u16 + y_start + 1;
+            let word_y = ((word.y as f32 / rows) * (y_end - y_start) as f32) as u16 + y_start;
 
             for (n, c) in word.value.chars().enumerate() {
                 let mut color = Color::White;
@@ -215,6 +220,84 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
                 add_x -= 1;
             }
         }
+    }
+
+    Ok(())
+}
+
+pub fn loading(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
+    let socket = state.socket.as_ref().unwrap();
+
+    for action in socket.actions().drain(..) {
+        match action {
+            Action::Join(position) => {
+                let mut player = Player::default();
+                player.sort_position = position;
+                state.players.push(player);
+                state.players.sort_by(|player_a, player_b| {
+                    player_a.sort_position.cmp(&player_b.sort_position)
+                });
+                for (i, player) in state.players.iter().enumerate() {
+                    if player.current_player {
+                        state.current_player = i;
+                        break;
+                    }
+                }
+            }
+            Action::Left(position) => {
+                state.players.remove(position);
+                state.players.sort_by(|player_a, player_b| {
+                    player_a.sort_position.cmp(&player_b.sort_position)
+                });
+                for (i, player) in state.players.iter().enumerate() {
+                    if player.current_player {
+                        state.current_player = i;
+                        break;
+                    }
+                }
+            }
+            Action::Forward => {
+                state.screen = Screen::MultiPlayer;
+                return Ok(());
+            }
+            _ => (),
+        };
+    }
+
+    let (columns, rows) = (
+        (state.columns as f32 * 0.35) as u16,
+        (state.rows as f32 * 0.4) as u16,
+    );
+
+    queue!(
+        stdout,
+        MoveTo(columns, rows),
+        PrintStyledContent(
+            "Waiting 10 seconds for other players to join."
+                .green()
+                .bold()
+        ),
+        MoveTo(columns, rows + 2)
+    )?;
+
+    for (i, player) in state.players.iter().enumerate() {
+        let color = match i {
+            0 => Color::Blue,
+            1 => Color::Red,
+            2 => Color::Green,
+            3 => Color::Yellow,
+            _ => Color::White,
+        };
+
+        let print_you = if player.current_player { " (You)" } else { "" };
+
+        queue!(
+            stdout,
+            PrintStyledContent("Player ".with(color).bold()),
+            PrintStyledContent(style(i + 1).with(color).bold()),
+            PrintStyledContent(style(print_you).with(color).bold()),
+            Print(' ')
+        )?;
     }
 
     Ok(())

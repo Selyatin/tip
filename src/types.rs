@@ -31,6 +31,7 @@ pub enum Screen {
     SinglePlayer,
     MultiPlayer,
     Join,
+    Loading
 }
 
 #[derive(Clone)]

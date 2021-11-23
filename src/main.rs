@@ -47,6 +47,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
         Screen::SinglePlayer => screens::single_player(stdout, state)?,
         Screen::Join => screens::join(stdout, state)?,
         Screen::MultiPlayer => screens::multi_player(stdout, state)?,
+        Screen::Loading => screens::loading(stdout, state)?
     };
 
     if let Some(err) = &state.err {
@@ -117,7 +118,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
                     player.input.clear();
 
-                    state.screen = Screen::MultiPlayer;
+                    state.screen = Screen::Loading;
                 }
                 _ => (),
             },
@@ -185,7 +186,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
                     .iter_mut()
                     .for_each(|word| word.y = rng.u16(0..state.rows - 1));
 
-                state.screen = Screen::MultiPlayer;
+                state.screen = Screen::Loading;
             }
             Event::Key(KeyEvent {
                 code: KeyCode::F(3),
