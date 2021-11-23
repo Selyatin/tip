@@ -11,18 +11,18 @@ use std::{
 };
 
 pub fn main(stdout: &mut Stdout, state: &State) -> io::Result<()> {
-    let (x, y) = ((state.columns as f32 * 0.4) as u16, state.rows as f32);
+    let (x, y) = ((state.columns as f32 * 0.4) as u16, (state.rows as f32 * 0.41) as u16);
 
     queue!(
         stdout,
         Clear(ClearType::All),
-        MoveTo(x, (y * 0.34) as u16),
+        MoveTo(x, y),
         PrintStyledContent("F1 - Single Player".green().bold()),
-        MoveTo(x, (y * 0.37) as u16),
+        MoveTo(x, y + 1),
         PrintStyledContent("F2 - Create New Multiplayer Session".yellow().bold()),
-        MoveTo(x, (y * 0.4) as u16),
+        MoveTo(x, y + 2),
         PrintStyledContent("F3 - Join Session".blue().bold()),
-        MoveTo(x, (y * 0.43) as u16),
+        MoveTo(x, y + 3),
         PrintStyledContent("ESC - Quit".red().bold())
     )?;
 
@@ -142,16 +142,16 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
     let space_per_player = (rows / players_len as f32) as u16 - 2;
 
-    // Could further optimize the code by caching this line in the state
-    // and only updating it once a Resize occurs, but don't wanna deal
-    // with the extra complexity right now, gotta keep it simple.
     let line: String = iter::repeat('-').take(columns.into()).collect();
-
+    
     // Might use multithreading to calculate each player's section,
     // but that might be overengineering too, so we'll see.
     for (i, player) in state.players.iter_mut().enumerate() {
+        
         let y_start = i as u16 * space_per_player;
+        
         let y_end = y_start + space_per_player;
+
         let color = match i {
             0 => Color::Blue,
             1 => Color::Red,
@@ -163,7 +163,10 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
         queue!(
             stdout,
             MoveTo(0, y_end),
-            PrintStyledContent(style(&line).with(color))
+            PrintStyledContent(style(&line).with(color)),
+            MoveTo(5, y_end),
+            PrintStyledContent("Player ".with(color)),
+            PrintStyledContent(style(i + 1).with(color))
         )?;
 
         let mut add_x: u16 = 4;
@@ -173,8 +176,8 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
             .enumerate()
         {
             let mut correct_chars = 0;
-
-            let word_y = ((word.y as f32 / rows) * y_end as f32 + y_start as f32) as u16 + 1;
+            
+            let word_y = ((word.y as f32 / rows) * (y_end - y_start) as f32) as u16 + y_start + 1;
 
             for (n, c) in word.value.chars().enumerate() {
                 let mut color = Color::White;
@@ -207,9 +210,8 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
             if should_go_forward {
                 word.x += add_x;
+                add_x -= 1;
             }
-
-            add_x -= 1;
         }
     }
 

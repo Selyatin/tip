@@ -110,6 +110,8 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
                         .dictionary
                         .iter_mut()
                         .for_each(|word| word.y = rng.u16(0..state.rows - 1));
+                    
+                    player.input.clear();
 
                     state.screen = Screen::MultiPlayer;
                 }
