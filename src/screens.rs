@@ -11,7 +11,10 @@ use std::{
 };
 
 pub fn main(stdout: &mut Stdout, state: &State) -> io::Result<()> {
-    let (x, y) = ((state.columns as f32 * 0.4) as u16, (state.rows as f32 * 0.41) as u16);
+    let (x, y) = (
+        (state.columns as f32 * 0.4) as u16,
+        (state.rows as f32 * 0.41) as u16,
+    );
 
     queue!(
         stdout,
@@ -143,13 +146,12 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
     let space_per_player = (rows / players_len as f32) as u16 - 2;
 
     let line: String = iter::repeat('-').take(columns.into()).collect();
-    
+
     // Might use multithreading to calculate each player's section,
     // but that might be overengineering too, so we'll see.
     for (i, player) in state.players.iter_mut().enumerate() {
-        
         let y_start = i as u16 * space_per_player;
-        
+
         let y_end = y_start + space_per_player;
 
         let color = match i {
@@ -176,7 +178,7 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
             .enumerate()
         {
             let mut correct_chars = 0;
-            
+
             let word_y = ((word.y as f32 / rows) * (y_end - y_start) as f32) as u16 + y_start + 1;
 
             for (n, c) in word.value.chars().enumerate() {
@@ -223,9 +225,10 @@ pub fn join(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
     let (columns, rows) = (state.columns as f32, state.rows as f32);
 
-    let (x_start, x_end) = ((columns * 0.4) as u16, (columns * 0.6) as u16);
+    let (mut x_start, mut x_end) = ((columns * 0.4) as u16, (columns * 0.6) as u16);
 
-    let (y_start, y_end) = ((rows * 0.4) as u16, (rows * 0.45) as u16);
+    let mut y_start = (rows * 0.4) as u16;
+    let y_end = y_start + 2;
 
     queue!(
         stdout,
@@ -243,34 +246,29 @@ pub fn join(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
         )?;
     }
 
-    let x_end = (columns * 0.599) as u16;
+    x_end -= 1;
+    y_start += 1;
 
-    let (y_start, y_end) = ((rows * 0.42) as u16, (rows * 0.45) as u16);
-
-    for y in y_start..y_end {
-        queue!(
-            stdout,
-            MoveTo(x_start, y),
-            Print('|'),
-            MoveTo(x_end, y),
-            Print('|')
-        )?;
-    }
+    queue!(
+        stdout,
+        MoveTo(x_start, y_start),
+        Print('|'),
+        MoveTo(x_end, y_start),
+        Print('|')
+    )?;
 
     let player = state.players.get(state.current_player).unwrap();
 
-    let x_end = x_end - 1;
+    x_end = x_end - 1;
 
-    let x = x_start + 1;
-
-    let y = (rows * 0.435) as u16;
+    x_start += 1;
 
     for (i, c) in player.input.chars().enumerate() {
-        let x = x + i as u16;
+        let x = x_start + i as u16;
         if x > x_end {
             break;
         }
-        queue!(stdout, MoveTo(x, y), Print(c))?;
+        queue!(stdout, MoveTo(x, y_start), Print(c))?;
     }
 
     Ok(())

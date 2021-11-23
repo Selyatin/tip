@@ -1,5 +1,5 @@
 use super::socket::Socket;
-use std::{time::Instant};
+use std::time::Instant;
 
 pub struct State {
     pub columns: u16,
@@ -22,7 +22,7 @@ pub enum Action {
     Input((usize, char)),
     Join(u8),
     Left(usize),
-    Forward
+    Forward,
 }
 
 #[derive(Eq, PartialEq)]

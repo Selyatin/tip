@@ -1,4 +1,5 @@
-#[macro_use] extern crate lazy_static;
+#[macro_use]
+extern crate lazy_static;
 
 mod screens;
 mod socket;
@@ -91,7 +92,10 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
                     state.socket = Some(Socket::new(&state.sock_addr)?);
 
-                    let session_token: u16 = player.input.parse().map_err(|_| io::Error::new(io::ErrorKind::Other, "Invalid Number."))?;
+                    let session_token: u16 = player
+                        .input
+                        .parse()
+                        .map_err(|_| io::Error::new(io::ErrorKind::Other, "Invalid Number."))?;
 
                     player.sort_position =
                         state.socket.as_mut().unwrap().join_session(session_token)?;
@@ -99,7 +103,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
                     state.session_token = Some(session_token);
 
                     state.socket.as_ref().unwrap().init_reader()?;
-                    
+
                     state.dictionary = DICTIONARY.clone();
 
                     let rng = fastrand::Rng::with_seed(state.session_token.unwrap().into());
@@ -110,7 +114,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
                         .dictionary
                         .iter_mut()
                         .for_each(|word| word.y = rng.u16(0..state.rows - 1));
-                    
+
                     player.input.clear();
 
                     state.screen = Screen::MultiPlayer;
@@ -146,7 +150,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
                 modifiers: KeyModifiers::NONE,
             }) => {
                 reset_state(state);
-                
+
                 let rng = fastrand::Rng::new();
 
                 rng.shuffle(&mut state.dictionary);
@@ -171,7 +175,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
                 state.socket.as_ref().unwrap().init_reader()?;
 
                 state.dictionary = DICTIONARY.clone();
-                
+
                 let rng = fastrand::Rng::with_seed(state.session_token.unwrap().into());
 
                 rng.shuffle(&mut state.dictionary);
@@ -207,8 +211,6 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
     Ok(())
 }
-
-
 
 fn main() -> io::Result<()> {
     let sock_addr = env::args().nth(1).unwrap_or("127.0.0.1:8080".to_owned());
