@@ -47,7 +47,7 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
         Screen::SinglePlayer => screens::single_player(stdout, state)?,
         Screen::Join => screens::join(stdout, state)?,
         Screen::MultiPlayer => screens::multi_player(stdout, state)?,
-        Screen::Loading => screens::loading(stdout, state)?
+        Screen::Loading => screens::loading(stdout, state)?,
     };
 
     if let Some(err) = &state.err {
@@ -111,10 +111,19 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
                     rng.shuffle(&mut state.dictionary);
 
-                    state
-                        .dictionary
-                        .iter_mut()
-                        .for_each(|word| word.y = rng.u16(0..state.rows - 1));
+                    let mut prev_y: u16 = 0;
+
+                    for word in &mut state.dictionary {
+                        let mut y = rng.u16(0..state.rows - 1);
+                        if y == prev_y {
+                            y += 2;
+                            if y > state.rows - 1 {
+                                y -= 3;
+                            }
+                        }
+                        prev_y = y;
+                        word.y = y;
+                    }
 
                     player.input.clear();
 
@@ -156,10 +165,19 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
                 rng.shuffle(&mut state.dictionary);
 
-                state
-                    .dictionary
-                    .iter_mut()
-                    .for_each(|word| word.y = rng.u16(0..state.rows - 1));
+                let mut prev_y: u16 = 0;
+
+                for word in &mut state.dictionary {
+                    let mut y = rng.u16(0..state.rows - 1);
+                    if y == prev_y {
+                        y += 2;
+                        if y > state.rows - 1 {
+                            y -= 3;
+                        }
+                    }
+                    prev_y = y;
+                    word.y = y;
+                }
 
                 state.screen = Screen::SinglePlayer;
             }
@@ -181,10 +199,19 @@ fn main_loop(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
 
                 rng.shuffle(&mut state.dictionary);
 
-                state
-                    .dictionary
-                    .iter_mut()
-                    .for_each(|word| word.y = rng.u16(0..state.rows - 1));
+                let mut prev_y: u16 = 0;
+
+                for word in &mut state.dictionary {
+                    let mut y = rng.u16(0..state.rows - 1);
+                    if y == prev_y {
+                        y += 2;
+                        if y > state.rows - 1 {
+                            y -= 3;
+                        }
+                    }
+                    prev_y = y;
+                    word.y = y;
+                }
 
                 state.screen = Screen::Loading;
             }

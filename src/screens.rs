@@ -181,7 +181,7 @@ pub fn multi_player(stdout: &mut Stdout, state: &mut State) -> io::Result<()> {
             .enumerate()
         {
             let mut correct_chars = 0;
-            
+
             let (y_start, y_end) = (y_start + 1, y_end - 1);
 
             let word_y = ((word.y as f32 / rows) * (y_end - y_start) as f32) as u16 + y_start;
